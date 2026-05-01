@@ -1,73 +1,105 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, 
-                             QPushButton, QTableWidget, QTableWidgetItem, 
-                             QLabel, QHeaderView) 
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
+                             QTableWidgetItem, QLineEdit, QPushButton, QLabel, QHeaderView)
+from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt
 from database.database import SessionLocal
-from database.models import Person
+from database.models import Person, Biometric, PersonCase, Case
+import os
+
 
 class SearchWindow(QWidget):
     def __init__(self, main_app=None):
         super().__init__(main_app)
-        self.main_app = main_app 
+        self.main_app = main_app
         self.init_ui()
+        self.load_data() # Initial load
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        self.main_app.setCurrentIndex(1)
 
-        # 1. Top Navigation & Search
-        top_layout = QHBoxLayout()
+        # Header / Navigation
+        header_layout = QHBoxLayout()
+        back_btn = QPushButton("← Back to Capture")
+        back_btn.clicked.connect(self.go_back)
+        header_layout.addWidget(back_btn)
         
-        self.btn_back = QPushButton("← Back to Capture")
-        self.btn_back.clicked.connect(self.back_to_capture)
-        top_layout.addWidget(self.btn_back)
+        title = QLabel("Intelligence Database")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        header_layout.addStretch()
+        header_layout.addWidget(title)
+        layout.addLayout(header_layout)
 
+        # Search Bar
+        search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by Name or NIN...")
-        self.search_input.setFixedHeight(40)
-        self.search_input.textChanged.connect(self.run_search)
-        top_layout.addWidget(self.search_input)
-        
-        layout.addLayout(top_layout)
+        self.search_input.setPlaceholderText("Search by Name, NIN, or Case Number...")
+        self.search_input.textChanged.connect(self.load_data) # Real-time filtering
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
 
-        # 2. Results Table
+        # Results Table
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["NIN", "First Name", "Last Name", "Gender"])
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "Photo", "Full Name", "NIN", "Gender", "Last Case", "Date Created"
+        ])
         
-        # Corrected Header Logic
+        # Table Styling
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setDefaultSectionSize(80) # Space for the mugshot
+        self.table.setIconSize(Qt.Size(70, 70))
         
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
 
-        # Initial Load
-        self.run_search()
-
-    def run_search(self):
-        search_term = self.search_input.text()
+    def load_data(self):
+        query_text = self.search_input.text()
         db = SessionLocal()
         
-        query = db.query(Person)
-        if search_term:
-            query = query.filter(
-                (Person.national_id_number.contains(search_term)) |
-                (Person.first_name.contains(search_term)) |
-                (Person.last_name.contains(search_term))
-            )
-        
-        results = query.all()
-        db.close()
+        try:
+            # Base Query
+            query = db.query(Person).filter(Person.is_deleted == False)
 
-        self.table.setRowCount(0)
-        for row_idx, person in enumerate(results):
-            self.table.insertRow(row_idx)
-            self.table.setItem(row_idx, 0, QTableWidgetItem(str(person.national_id_number or "")))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(str(person.first_name or "")))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(str(person.last_name or "")))
-            self.table.setItem(row_idx, 3, QTableWidgetItem(str(person.gender or "")))
+            # Apply Filters if search text exists
+            if query_text:
+                search = f"%{query_text}%"
+                query = query.filter(
+                    (Person.first_name.ilike(search)) | 
+                    (Person.last_name.ilike(search)) |
+                    (Person.national_id_number.ilike(search))
+                )
 
-    def back_to_capture(self):
-        # This takes the user back to the Capture Screen
-        self.main_app.setCurrentIndex(1) # Index 1 is the Capture screen in our stack
+            results = query.all()
+            self.table.setRowCount(len(results))
+
+            for row, person in enumerate(results):
+                # 1. Handle Photo (First Biometric)
+                photo_item = QTableWidgetItem()
+                if person.biometrics:
+                    path = person.biometrics[0].file_path
+                    if os.path.exists(path):
+                        icon = QIcon(path)
+                        photo_item.setIcon(icon)
+                
+                # 2. Get Recent Case
+                case_text = "N/A"
+                if person.cases:
+                    # Get the most recent case linked
+                    case_text = person.cases[-1].case.case_number
+
+                # 3. Fill Table
+                self.table.setItem(row, 0, photo_item)
+                self.table.setItem(row, 1, QTableWidgetItem(f"{person.first_name} {person.last_name}"))
+                self.table.setItem(row, 2, QTableWidgetItem(person.national_id_number or "N/A"))
+                self.table.setItem(row, 3, QTableWidgetItem(person.gender))
+                self.table.setItem(row, 4, QTableWidgetItem(case_text))
+                self.table.setItem(row, 5, QTableWidgetItem(person.created_at.strftime("%Y-%m-%d")))
+
+        except Exception as e:
+            print(f"Search Error: {e}")
+        finally:
+            db.close()
+
+    def go_back(self):
+        self.main_app.setCurrentIndex(0) # Assuming Capture is index 0
