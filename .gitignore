@@ -1,0 +1,34 @@
+# Python environment
+venv/
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# Sensitive Assets
+mvp/photos/
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+
+*.docx
+*.xlsx
+*db_design_first_draft.docx
+*What we are building.docx
+*mvp/Additonal tables to Schema for security purposes.txt
+*mvp/Schema 1.txt
+*mvp/schema 2 (compare with schema 1).txt
+*mvp/Schema.txt
+*pdf
+temp/
+*.txt
