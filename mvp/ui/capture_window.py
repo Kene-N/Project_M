@@ -29,18 +29,20 @@ class CaptureWindow(QWidget):
         self.master_layout = QVBoxLayout(self)
         self.master_layout.setSpacing(10)
         
+        
+
         # 1. NAVIGATION (Pinned)
         nav = QHBoxLayout()
-        btn_search = QPushButton("🔍 Open Intelligence Database")
+        btn_search = QPushButton("🔍 Search Records")
         btn_search.setFixedHeight(35)
+        btn_search.setStyleSheet("background-color: #34495e; color: white; font-weight: bold;")
         btn_search.clicked.connect(self.open_search)
         nav.addWidget(btn_search)
         nav.addStretch()
         self.master_layout.addLayout(nav)
 
         # 2. PINNED MUGSHOT GALLERY
-        # Fixed height ensures it never disappears or moves when scrolling
-        gallery_group = QGroupBox("Forensic Photo Capture")
+        gallery_group = QGroupBox("Mugshots")
         gallery_group.setFixedHeight(240)
         gallery_layout = QHBoxLayout()
         self.photo_slots = []
@@ -48,19 +50,21 @@ class CaptureWindow(QWidget):
         for i, label_text in enumerate(self.labels):
             container = QFrame()
             container.setFixedWidth(160)
-            container.setStyleSheet("background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;")
+            container.setStyleSheet("background: #F4F6F9; border: 1px solid #ddd; border-radius: 4px;")
             vbox = QVBoxLayout(container)
             
             lbl = QLabel(label_text)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet("font-weight: bold; font-size: 10px;")
+            lbl.setStyleSheet("font-weight: bold; font-size: 10px; color: #2c3e50;") # Dark text for gallery labels
             
             img = QLabel("No Image")
             img.setFixedSize(140, 140)
-            img.setStyleSheet("border: 2px dashed #ccc; background: white;")
+            # Added 'color: #7f8c8d' to ensure "No Image" is visible on the white background
+            img.setStyleSheet("border: 2px dashed #ccc; background: white; color: #7f8c8d;")
             img.setAlignment(Qt.AlignmentFlag.AlignCenter)
             
             btn = QPushButton("Browse")
+            btn.setStyleSheet("color: #2c3e50;")
             btn.clicked.connect(lambda chk, idx=i: self.browse_photo(idx))
             
             vbox.addWidget(lbl)
@@ -76,6 +80,7 @@ class CaptureWindow(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background-color: transparent;")
         content = QWidget()
         form = QVBoxLayout(content)
 
@@ -167,7 +172,7 @@ class CaptureWindow(QWidget):
         form.addWidget(grp_phys)
 
         # --- E. ORGANIZATIONAL AFFILIATION ---
-        grp_org = QGroupBox("5. Organizational Affiliation")
+        grp_org = QGroupBox("5. Organizations/Affiliation")
         f_org = QFormLayout()
         self.org_name = QLineEdit()
         self.org_type = QComboBox()
@@ -204,11 +209,10 @@ class CaptureWindow(QWidget):
         form.addWidget(grp_case)
 
         scroll.setWidget(content)
-        # Adding stretch factor of 1 ensures the scroll area takes all flexible space
         self.master_layout.addWidget(scroll, stretch=1)
 
         # 4. PINNED FOOTER
-        self.btn_save = QPushButton("💾 COMMIT FULL FORENSIC RECORD")
+        self.btn_save = QPushButton("SAVE RECORD")
         self.btn_save.setFixedHeight(50)
         self.btn_save.setStyleSheet("""
             QPushButton { background-color: #28a745; color: white; font-weight: bold; border-radius: 5px; }
@@ -232,14 +236,12 @@ class CaptureWindow(QWidget):
 
         db = SessionLocal()
         try:
-            # Build residency log
             history_log = f"CURRENT ADDR: {self.current_address.text()} ({self.stay_duration.text()})\n"
             history_log += "RESIDENCY HISTORY:\n"
             for addr, dur in self.prev_addresses:
                 if addr.text():
                     history_log += f"- {addr.text()} (Stay: {dur.text()})\n"
 
-            # 1. Create Person
             p = Person(
                 first_name=self.first_name.text(), last_name=self.last_name.text(),
                 middle_names=self.middle_names.text(), date_of_birth=self.dob.text(),
@@ -254,16 +256,13 @@ class CaptureWindow(QWidget):
             db.add(p)
             db.flush()
 
-            # 2. Aliases
             if self.aliases.text():
                 for a in self.aliases.text().split(","):
                     db.add(PersonAlias(person_id=p.person_id, alias_name=a.strip()))
 
-            # 3. Contacts
             if self.phone.text():
                 db.add(PersonContact(person_id=p.person_id, contact_type="Phone", contact_value=self.phone.text()))
 
-            # 4. Organization
             if self.org_name.text():
                 org = db.query(Organization).filter_by(name=self.org_name.text()).first()
                 if not org:
@@ -273,7 +272,6 @@ class CaptureWindow(QWidget):
                 db.add(PersonAffiliation(person_id=p.person_id, org_id=org.org_id, 
                                          role=self.org_role.text(), is_active=self.org_active.isChecked()))
 
-            # 5. Biometrics
             asset_dir = "mvp/assets/photos"
             os.makedirs(asset_dir, exist_ok=True)
             for i, path in enumerate(self.selected_photos):
@@ -283,7 +281,6 @@ class CaptureWindow(QWidget):
                     shutil.copy(path, fpath)
                     db.add(Biometric(person_id=p.person_id, biometric_type=self.labels[i], file_path=fpath))
 
-            # 6. Case
             c = db.query(Case).filter_by(case_number=self.case_no.text()).first()
             if not c:
                 c = Case(
@@ -311,7 +308,7 @@ class CaptureWindow(QWidget):
         for slot in self.photo_slots: 
             slot.clear()
             slot.setText("No Image")
-            slot.setStyleSheet("border: 2px dashed #ccc; background: white;")
+            slot.setStyleSheet("border: 2px dashed #ccc; background: white; color: #7f8c8d;")
         for addr, dur in self.prev_addresses: 
             addr.clear()
             dur.clear()

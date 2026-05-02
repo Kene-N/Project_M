@@ -15,7 +15,7 @@ class LoginWindow(QWidget):
 
         container = QFrame()
         container.setFixedWidth(400)
-        container.setStyleSheet("QFrame { background-color: #89f050; border-radius: 10px; padding: 20px; }")
+        container.setStyleSheet("QFrame { background-color: #1A1A40; border-radius: 10px; padding: 20px; }")
         
         container_layout = QVBoxLayout(container)
 
@@ -25,7 +25,7 @@ class LoginWindow(QWidget):
         container_layout.addWidget(title)
 
         self.badge_input = QLineEdit()
-        self.badge_input.setPlaceholderText("Badge Number")
+        self.badge_input.setPlaceholderText("User Credentials")
         self.badge_input.setFixedHeight(35)
         container_layout.addWidget(self.badge_input)
 
@@ -37,7 +37,7 @@ class LoginWindow(QWidget):
 
         login_btn = QPushButton("Login")
         login_btn.setFixedHeight(40)
-        login_btn.setStyleSheet("QPushButton { background-color: #5c3e50; color: blue; font-weight: bold; }")
+        login_btn.setStyleSheet("QPushButton { background-color: #00A8E8; color: blue; font-weight: bold; }")
         login_btn.clicked.connect(self.handle_login)
         container_layout.addWidget(login_btn)
 
@@ -48,7 +48,7 @@ class LoginWindow(QWidget):
         badge = self.badge_input.text()
         password = self.password_input.text()
 
-        if badge == "ADMIN" and password == "1234":
+        if badge == "admin" and password == "123":
             # 1. Create the next screen
             from ui.capture_window import CaptureWindow
             self.capture_screen = CaptureWindow(self.main_app)
