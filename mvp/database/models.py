@@ -14,7 +14,7 @@ class Person(Base):
     middle_names = Column(Text)
     date_of_birth = Column(String)  # ISO format recommended: YYYY-MM-DD
     gender = Column(String)
-    
+    aliases = Column(Text)
     # --- Heritage & Verification ---
     nationality = Column(String, default="Nigerian")
     state_of_origin = Column(String)
@@ -67,6 +67,7 @@ class Case(Base):
     description = Column(Text)
     
     # Location Intelligence
+    arrest_date = Column (DateTime)
     arrest_address = Column(Text)
     arrest_latitude = Column(Numeric(10, 8))
     arrest_longitude = Column(Numeric(11, 8))
@@ -125,3 +126,11 @@ class PersonAffiliation(Base):
 
     person = relationship("Person", back_populates="affiliations")
     organization = relationship("Organization", back_populates="members")
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, default="user") # "admin" or "user"
+    is_active = Column(Boolean, default=True)

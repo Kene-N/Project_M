@@ -3,12 +3,15 @@ import shutil
 from uuid import uuid4
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
                              QPushButton, QFormLayout, QGroupBox, QScrollArea, 
-                             QMessageBox, QComboBox, QTextEdit, QFileDialog, QFrame, QCheckBox)
+                             QMessageBox, QComboBox, QTextEdit, QFileDialog, QFrame, 
+                             QCheckBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QSize
 from database.database import SessionLocal
 from database.models import (Person, Biometric, Case, PersonCase, 
-                             PersonAlias, PersonContact, Organization, PersonAffiliation)
+                             PersonAlias, PersonContact, Organization, PersonAffiliation, User)
+from auth.auth_handler import get_password_hash
+
 
 class CaptureWindow(QWidget):
     def __init__(self, main_app=None):
@@ -30,7 +33,6 @@ class CaptureWindow(QWidget):
         self.master_layout.setSpacing(10)
         
         
-
         # 1. NAVIGATION (Pinned)
         nav = QHBoxLayout()
         btn_search = QPushButton("🔍 Search Records")
@@ -38,7 +40,16 @@ class CaptureWindow(QWidget):
         btn_search.setStyleSheet("background-color: #34495e; color: white; font-weight: bold;")
         btn_search.clicked.connect(self.open_search)
         nav.addWidget(btn_search)
-        nav.addStretch()
+
+        nav.addStretch() # Pushes the logout button to the far right
+
+        # ADD LOGOUT BUTTON
+        btn_logout = QPushButton("Logout")
+        btn_logout.setFixedWidth(80)
+        btn_logout.setStyleSheet("background-color: #c0392b; color: white; border-radius: 4px;")
+        btn_logout.clicked.connect(self.main_app.logout) # Calls the function we just made
+        nav.addWidget(btn_logout)
+
         self.master_layout.addLayout(nav)
 
         # 2. PINNED MUGSHOT GALLERY
@@ -55,11 +66,10 @@ class CaptureWindow(QWidget):
             
             lbl = QLabel(label_text)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet("font-weight: bold; font-size: 10px; color: #2c3e50;") # Dark text for gallery labels
+            lbl.setStyleSheet("font-weight: bold; font-size: 10px; color: #2c3e50;")
             
             img = QLabel("No Image")
             img.setFixedSize(140, 140)
-            # Added 'color: #7f8c8d' to ensure "No Image" is visible on the white background
             img.setStyleSheet("border: 2px dashed #ccc; background: white; color: #7f8c8d;")
             img.setAlignment(Qt.AlignmentFlag.AlignCenter)
             
@@ -97,7 +107,6 @@ class CaptureWindow(QWidget):
         self.current_address = QLineEdit()
         self.current_address.setPlaceholderText("Current Full Residential Address")
         self.stay_duration = QLineEdit()
-        self.stay_duration.setPlaceholderText("Duration of stay (e.g., 5 years)")
         
         f_bio.addRow("First Name *", self.first_name)
         f_bio.addRow("Last Name *", self.last_name)
@@ -211,7 +220,7 @@ class CaptureWindow(QWidget):
         scroll.setWidget(content)
         self.master_layout.addWidget(scroll, stretch=1)
 
-        # 4. PINNED FOOTER
+        # 4. FOOTER CONTROLS
         self.btn_save = QPushButton("SAVE RECORD")
         self.btn_save.setFixedHeight(50)
         self.btn_save.setStyleSheet("""
@@ -220,6 +229,112 @@ class CaptureWindow(QWidget):
         """)
         self.btn_save.clicked.connect(self.save_person)
         self.master_layout.addWidget(self.btn_save)
+
+        # --- ADMIN TOOLS PANEL ---
+        self.admin_panel = QGroupBox("System Administration")
+        self.admin_layout = QHBoxLayout()
+        self.btn_create_user = QPushButton("➕ Create New User Account")
+        self.btn_create_user.setFixedHeight(40)
+        self.btn_create_user.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
+        self.btn_create_user.clicked.connect(self.show_user_creation_dialog)
+        self.admin_layout.addWidget(self.btn_create_user)
+        self.admin_panel.setLayout(self.admin_layout)
+        self.master_layout.addWidget(self.admin_panel)
+        
+        # Hide by default, revealed in showEvent
+        self.admin_panel.setVisible(False)
+
+    def update_admin_visibility(self):
+        """Refreshes the Admin Panel visibility based on the current session role."""
+        # Get role safely from main_app
+        role = getattr(self.main_app, 'current_user_role', 'user')
+        
+        # Ensure the panel exists before trying to hide/show it
+        if hasattr(self, 'admin_panel'):
+            self.admin_panel.setVisible(role == "admin")
+
+    def showEvent(self, event):
+        """Triggered whenever the screen is shown."""
+        super().showEvent(event)
+        self.update_admin_visibility()
+
+    def show_user_creation_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Personnel Management")
+        dialog.setMinimumWidth(400)
+        master_layout = QVBoxLayout(dialog)
+        
+        # --- TOP: List of Existing Users ---
+        master_layout.addWidget(QLabel("<b>Existing System Users:</b>"))
+        user_table = QTableWidget()
+        user_table.setColumnCount(2)
+        user_table.setHorizontalHeaderLabels(["Username", "Access Level"])
+        user_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        user_table.setFixedHeight(150)
+        
+        # Populate the table
+        db = SessionLocal()
+        users = db.query(User).all()
+        user_table.setRowCount(len(users))
+        for row, u in enumerate(users):
+            user_table.setItem(row, 0, QTableWidgetItem(u.username))
+            user_table.setItem(row, 1, QTableWidgetItem(u.role))
+        db.close()
+        master_layout.addWidget(user_table)
+
+        # --- BOTTOM: Create New User Form ---
+        form_group = QGroupBox("Add New Personnel")
+        layout = QFormLayout(form_group)
+        name_in = QLineEdit()
+        pass_in = QLineEdit()
+        pass_in.setEchoMode(QLineEdit.EchoMode.Password)
+        role_in = QComboBox()
+        role_in.addItems(["user", "admin"])
+        
+        layout.addRow("Username:", name_in)
+        layout.addRow("Password:", pass_in)
+        layout.addRow("Role:", role_in)
+        
+        btn = QPushButton("Commit to System")
+        btn.setStyleSheet("background-color: #28a745; color: white; font-weight: bold;")
+        btn.clicked.connect(dialog.accept)
+        layout.addWidget(btn)
+        
+        master_layout.addWidget(form_group)
+        
+        if dialog.exec():
+            self.process_new_user(name_in.text(), pass_in.text(), role_in.currentText())
+
+    def process_new_user(self, username, password, role):
+        if not username or not password: return
+        db = SessionLocal()
+        try:
+            # THE FIX: We MUST hash the password here
+            hashed_pw = get_password_hash(password)
+            new_user = User(username=username, password_hash=hashed_pw, role=role)
+            db.add(new_user)
+            db.commit()
+            QMessageBox.information(self, "Success", f"Credentials for {username} are now active.")
+        except Exception as e:
+            db.rollback()
+            QMessageBox.critical(self, "Error", f"Failed to create user: {str(e)}")
+        finally:
+            db.close()
+
+
+        if not username or not password: return
+        db = SessionLocal()
+        try:
+            hashed = get_password_hash(password)
+            new_user = User(username=username, password_hash=password, role=role)
+            db.add(new_user)
+            db.commit()
+            QMessageBox.information(self, "Success", f"User {username} created.")
+        except Exception as e:
+            db.rollback()
+            QMessageBox.critical(self, "Error", f"Could not create user: {str(e)}")
+        finally:
+            db.close()
 
     def browse_photo(self, index):
         path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.jpg *.png)")
@@ -313,3 +428,6 @@ class CaptureWindow(QWidget):
             addr.clear()
             dur.clear()
         self.selected_photos = [None] * 4
+
+
+   

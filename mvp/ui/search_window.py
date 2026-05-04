@@ -12,6 +12,22 @@ class SearchWindow(QWidget):
         self.main_app = main_app
         self.init_ui()
 
+    def showEvent(self, event):
+        """Refreshes permissions every time the analyst switches to this view"""
+        super().showEvent(event)
+        self.apply_permissions()
+
+    def apply_permissions(self):
+        # Fallback to 'user' if role isn't set yet
+        role = getattr(self.main_app, 'current_user_role', 'user')
+        if role == "admin":
+            self.title.setText("ADMIN ACCESS")
+            self.title.setStyleSheet("font-size: 18px; font-weight: bold; color: #e67e22;") # Orange for Admin
+        else:
+            self.title.setText("Welcome")
+            self.title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
+            self.results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            
     def init_ui(self):
         self.layout = QVBoxLayout(self)
 
@@ -23,12 +39,13 @@ class SearchWindow(QWidget):
         btn_back.setStyleSheet("padding: 5px; font-weight: bold;")
         btn_back.clicked.connect(self.go_back)
         
-        title = QLabel("Records")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
+        # FIXED: Assigned to self.title so apply_permissions can find it
+        self.title = QLabel("Records")
+        self.title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
         
         header.addWidget(btn_back)
         header.addStretch()
-        header.addWidget(title)
+        header.addWidget(self.title)
         self.layout.addLayout(header)
 
         # 2. UNIVERSAL SEARCH BAR
@@ -38,7 +55,8 @@ class SearchWindow(QWidget):
         
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by Name, Alias, NIN, BVN, or Case Number...")
-        self.search_input.setStyleSheet("padding: 8px; font-size: 14px; background: dark gray;")
+        # FIXED: Changed 'dark gray' to 'darkgray'
+        self.search_input.setStyleSheet("padding: 8px; font-size: 14px; background: white; color: black;")
         self.search_input.returnPressed.connect(self.perform_search)
         
         btn_run_search = QPushButton("Run Search")
@@ -61,7 +79,6 @@ class SearchWindow(QWidget):
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results_table.setAlternatingRowColors(True)
         self.results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
         self.layout.addWidget(self.results_table)
 
@@ -73,8 +90,6 @@ class SearchWindow(QWidget):
         db = SessionLocal()
         try:
             search_val = f"%{query_text}%"
-            
-            # Joins allow us to search through aliases and cases simultaneously
             results = db.query(Person).outerjoin(PersonAlias).outerjoin(PersonCase).outerjoin(Case).filter(
                 or_(
                     Person.first_name.ilike(search_val),
@@ -98,13 +113,10 @@ class SearchWindow(QWidget):
             row_idx = self.results_table.rowCount()
             self.results_table.insertRow(row_idx)
             
-            # Combine aliases into a string
             alias_str = ", ".join([a.alias_name for a in person.aliases]) if person.aliases else "None"
             
-            # Get case number
             case_str = "No Record"
             if person.cases:
-                # person.cases is a list of PersonCase objects; person.cases[0].case is the Case object
                 case_str = person.cases[0].case.case_number
 
             self.results_table.setItem(row_idx, 0, QTableWidgetItem(f"{person.first_name} {person.last_name}"))
@@ -114,10 +126,9 @@ class SearchWindow(QWidget):
             self.results_table.setItem(row_idx, 4, QTableWidgetItem("Active"))
 
     def go_back(self):
-        # Dynamically find the CaptureWindow index instead of guessing 0
+        # Loops through the stacked widget to find the Capture screen
         for i in range(self.main_app.count()):
             widget = self.main_app.widget(i)
-            # This checks the class name of the widget
             if widget.__class__.__name__ == "CaptureWindow":
                 self.main_app.setCurrentIndex(i)
                 return
