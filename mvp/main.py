@@ -9,14 +9,22 @@ from ui.capture_window import CaptureWindow
 class MVP_App(QStackedWidget):
     def __init__(self):
         super().__init__()
+<<<<<<< HEAD
         self.setWindowTitle("MVP Database v.1.0.0")
+=======
+        self.setWindowTitle("Melian Intelligence System")
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
         self.setMinimumSize(1000, 700)
         
         # 1. User Session Data
         self.current_user_role = None
         self.current_username = None
 
+<<<<<<< HEAD
         # 2. Initialize Screens 
+=======
+        # 2. Initialize Screens (MUST happen before the DB check)
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
         self.login_screen = LoginWindow(self)
         self.capture_screen = CaptureWindow(self)
         
@@ -48,7 +56,11 @@ class MVP_App(QStackedWidget):
         
         # Reset the login screen back to standard login (in case it was in setup mode)
         self.login_screen.is_setup = False
+<<<<<<< HEAD
         self.login_screen.title.setText("MVP Database LOGIN")
+=======
+        self.login_screen.title.setText("MELIAN SYSTEM LOGIN")
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
         self.login_screen.login_btn.setText("Login")
         
         self.setCurrentWidget(self.login_screen)    

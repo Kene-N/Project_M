@@ -23,7 +23,11 @@ class LoginWindow(QWidget):
         
         container_layout = QVBoxLayout(self.container)
 
+<<<<<<< HEAD
         self.title = QLabel("MVP Database LOGIN")
+=======
+        self.title = QLabel("MELIAN SYSTEM LOGIN")
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
         self.title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         self.title.setStyleSheet("color: white;")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -57,7 +61,10 @@ class LoginWindow(QWidget):
         layout.addWidget(self.container)
         self.setLayout(layout)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
     def setup_mode(self):
         """Called by main.py if no admin exists in the database."""
         self.is_setup = True
@@ -95,7 +102,11 @@ class LoginWindow(QWidget):
             
             # Revert UI to standard login
             self.is_setup = False
+<<<<<<< HEAD
             self.title.setText("MVP LOGIN")
+=======
+            self.title.setText("MELIAN SYSTEM LOGIN")
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7
             self.badge_input.setPlaceholderText("Username")
             self.password_input.setPlaceholderText("Password")
             self.login_btn.setText("Login")

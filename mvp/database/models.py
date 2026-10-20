@@ -137,9 +137,12 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, default="user") # "admin" or "user"
     is_active = Column(Boolean, default=True)
+<<<<<<< HEAD
 
 class SystemMetadata(Base):
     __tablename__ = "system_metadata"
     id = Column(Integer, primary_key=True)
     version = Column(String, default="1.0.0")
     last_updated = Column(DateTime, default=func.now())
+=======
+>>>>>>> 77c5813b6edf98dffee25940548d900144937ba7

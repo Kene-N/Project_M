@@ -31,7 +31,7 @@ class CaptureWindow(QWidget):
     def init_ui(self):
         self.master_layout = QVBoxLayout(self)
         self.master_layout.setSpacing(10)
-        
+
         # 1. NAVIGATION
         nav = QHBoxLayout()
         btn_search = QPushButton("🔍 Search Records")
@@ -55,32 +55,32 @@ class CaptureWindow(QWidget):
         gallery_group.setFixedHeight(240)
         gallery_layout = QHBoxLayout()
         self.photo_slots = []
-        
+
         for i, label_text in enumerate(self.labels):
             container = QFrame()
             container.setFixedWidth(160)
             container.setStyleSheet("background: #F4F6F9; border: 1px solid #ddd; border-radius: 4px;")
             vbox = QVBoxLayout(container)
-            
+
             lbl = QLabel(label_text)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("font-weight: bold; font-size: 10px; color: #2c3e50;")
-            
+
             img = QLabel("No Image")
             img.setFixedSize(140, 140)
             img.setStyleSheet("border: 2px dashed #ccc; background: white; color: #7f8c8d;")
             img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            
+
             btn = QPushButton("Browse")
             btn.setStyleSheet("color: #2c3e50;")
             btn.clicked.connect(lambda chk, idx=i: self.browse_photo(idx))
-            
+
             vbox.addWidget(lbl)
             vbox.addWidget(img)
             vbox.addWidget(btn)
             gallery_layout.addWidget(container)
             self.photo_slots.append(img)
-            
+
         gallery_group.setLayout(gallery_layout)
         self.master_layout.addWidget(gallery_group)
 
@@ -102,7 +102,7 @@ class CaptureWindow(QWidget):
         self.gender.addItems(["Male", "Female", "Other"])
         self.current_address = QLineEdit()
         self.stay_duration = QLineEdit()
-        
+
         f_bio.addRow("First Name *", self.first_name)
         f_bio.addRow("Last Name *", self.last_name)
         f_bio.addRow("Middle Name(s)", self.middle_names)
@@ -136,7 +136,7 @@ class CaptureWindow(QWidget):
         self.f_name = QLineEdit(); self.m_name = QLineEdit(); self.m_maiden = QLineEdit()
         self.nin = QLineEdit(); self.nin_verified = QCheckBox("NIN Verified")
         self.bvn = QLineEdit()
-        
+
         f_her.addRow("Nationality", self.nationality); f_her.addRow("State of Origin", self.state)
         f_her.addRow("LGA", self.lga); f_her.addRow("Father's Name", self.f_name)
         f_her.addRow("Mother's Name", self.m_name); f_her.addRow("Mother's Maiden", self.m_maiden)
@@ -181,12 +181,14 @@ class CaptureWindow(QWidget):
         scroll.setWidget(content)
         self.master_layout.addWidget(scroll, stretch=1)
 
+        # 4. FOOTER CONTROLS
         self.btn_save = QPushButton("SAVE RECORD")
         self.btn_save.setFixedHeight(50)
         self.btn_save.setStyleSheet("background-color: #28a745; color: white; font-weight: bold; border-radius: 5px;")
         self.btn_save.clicked.connect(self.save_person)
         self.master_layout.addWidget(self.btn_save)
 
+        # --- ADMIN TOOLS PANEL ---
         self.admin_panel = QGroupBox("System Administration")
         self.admin_layout = QHBoxLayout()
         self.btn_create_user = QPushButton("➕ Manage Personnel")
@@ -199,6 +201,7 @@ class CaptureWindow(QWidget):
         self.admin_panel.setVisible(False)
 
     def update_admin_visibility(self):
+        """Refreshes the Admin Panel visibility based on current session role."""
         role = getattr(self.main_app, 'current_user_role', 'user')
         if hasattr(self, 'admin_panel'):
             self.admin_panel.setVisible(role == "admin")
@@ -212,21 +215,21 @@ class CaptureWindow(QWidget):
         dialog.setWindowTitle("Personnel Management")
         dialog.setMinimumWidth(500)
         master_layout = QVBoxLayout(dialog)
-        
+
         master_layout.addWidget(QLabel("<b>Existing System Users:</b>"))
         user_table = QTableWidget()
         user_table.setColumnCount(3)
         user_table.setHorizontalHeaderLabels(["Username", "Role", "Action"])
         user_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         user_table.setFixedHeight(200)
-        
+
         db = SessionLocal()
         users = db.query(User).all()
         user_table.setRowCount(len(users))
         for row, u in enumerate(users):
             user_table.setItem(row, 0, QTableWidgetItem(u.username))
             user_table.setItem(row, 1, QTableWidgetItem(u.role))
-            if u.username != self.main_app.current_username:
+            if u.username != getattr(self.main_app, 'current_username', ''):
                 del_btn = QPushButton("Delete")
                 del_btn.setStyleSheet("background-color: #c0392b; color: white;")
                 del_btn.clicked.connect(lambda chk, uid=u.id, d=dialog: self.delete_user(uid, d))
@@ -240,7 +243,7 @@ class CaptureWindow(QWidget):
         pass_in.setEchoMode(QLineEdit.EchoMode.Password)
         role_in = QComboBox(); role_in.addItems(["user", "admin"])
         layout.addRow("Username:", name_in); layout.addRow("Password:", pass_in); layout.addRow("Role:", role_in)
-        
+
         btn = QPushButton("Commit to System")
         btn.setStyleSheet("background-color: #28a745; color: white; font-weight: bold;")
         btn.clicked.connect(lambda: self.process_new_user(name_in.text(), pass_in.text(), role_in.currentText(), dialog))
@@ -264,7 +267,8 @@ class CaptureWindow(QWidget):
             db.close()
 
     def process_new_user(self, username, password, role, dialog):
-        if not username or not password: return
+        if not username or not password: 
+            return
         db = SessionLocal()
         try:
             if role == "admin" and db.query(User).filter_by(role="admin").count() >= 3:
@@ -276,7 +280,8 @@ class CaptureWindow(QWidget):
             dialog.accept()
             QMessageBox.information(self, "Success", f"User {username} created.")
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            db.rollback()
+            QMessageBox.critical(self, "Error", f"Could not create user: {str(e)}")
         finally:
             db.close()
 
@@ -305,7 +310,7 @@ class CaptureWindow(QWidget):
                 distinguishing_marks=self.marks.toPlainText()
             )
             db.add(p); db.flush()
-            
+
             db.commit()
             QMessageBox.information(self, "Saved", "Profile committed.")
             self.clear_form()
@@ -319,15 +324,16 @@ class CaptureWindow(QWidget):
         for w in self.findChildren(QLineEdit): w.clear()
         for w in self.findChildren(QTextEdit): w.clear()
         for slot in self.photo_slots: 
-            slot.clear(); slot.setText("No Image")
+            slot.clear()
+            slot.setText("No Image")
+            slot.setStyleSheet("border: 2px dashed #ccc; background: white; color: #7f8c8d;")
+        for addr, dur in self.prev_addresses: 
+            addr.clear()
+            dur.clear()
         self.selected_photos = [None] * 4
 
     def ensure_assets_exist(self):
-        # This creates the path relative to where the .exe is running
         path = os.path.join("mvp", "assets", "photos")
         if not os.path.exists(path):
             os.makedirs(path)
             print(f"Created missing directory: {path}")
-
-
-      
