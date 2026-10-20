@@ -5,9 +5,13 @@ __pycache__/
 
 # Database
 *.db
+*sqlite 
+*sqlite3
 
 # Sensitive Assets
 mvp/photos/
+*.log
+config.ini
 
 # IDE settings
 .vscode/
@@ -32,3 +36,15 @@ Thumbs.db
 *pdf
 temp/
 *.txt
+
+# Executable builds & archives
+DB.zip
+*.spec
+MVP_Database/
+New folder/
+dist/
+
+DB/
+build/
+
+mvp/assets/photos/
